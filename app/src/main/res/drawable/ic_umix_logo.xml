@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo uMix (convertida de logo-umix.svg) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="170dp"
+    android:height="79dp"
+    android:viewportWidth="170"
+    android:viewportHeight="79">
+    <path
+        android:fillColor="#414EDD"
+        android:pathData="M117.853,0L163.014,78.2209L72.6919,78.2209L117.853,0Z" />
+    <path
+        android:fillColor="#D73436"
+        android:pathData="M52.1472,0L97.3081,78.2209L6.9864,78.2209L52.1472,0Z" />
+    <path
+        android:fillColor="#0F1120"
+        android:pathData="M51.1043,33.8957a33.8957,33.8957 0,1 1,67.7914,0a33.8957,33.8957 0,1 1,-67.7914,0z" />
+    <path
+        android:pathData="M53.7442,33.8958a31.2558,31.2558 0,1 1,62.5116,0a31.2558,31.2558 0,1 1,-62.5116,0z"
+        android:strokeWidth="1.04294"
+        android:strokeColor="#4A4F78"
+        android:strokeAlpha="0.4" />
+    <path
+        android:pathData="M59.0405,33.8957a25.9595,25.9595 0,1 1,51.9190,0a25.9595,25.9595 0,1 1,-51.9190,0z"
+        android:strokeWidth="1.04294"
+        android:strokeColor="#4A4F78"
+        android:strokeAlpha="0.4" />
+    <path
+        android:pathData="M62.2182,33.8957a22.7818,22.7818 0,1 1,45.5636,0a22.7818,22.7818 0,1 1,-45.5636,0z"
+        android:strokeWidth="1.04294"
+        android:strokeColor="#4A4F78"
+        android:strokeAlpha="0.4" />
+    <path
+        android:fillColor="#FFE66D"
+        android:pathData="M70.1706,33.3661a15.359,15.359 0,1 1,30.7180,0a15.359,15.359 0,1 1,-30.7180,0z" />
+</vector>
