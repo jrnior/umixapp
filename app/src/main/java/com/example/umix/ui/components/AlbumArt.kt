@@ -3,6 +3,7 @@ package com.example.umix.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,8 +16,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 
 /**
  * Capa de álbum provisória (gradiente + nota musical).
@@ -28,6 +31,7 @@ fun AlbumArt(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(16.dp),
     iconSize: Dp = 36.dp,
+    imageUrl: String? = null,
     content: @Composable BoxScope.() -> Unit = {}
 ) {
     Box(
@@ -42,6 +46,14 @@ fun AlbumArt(
             tint = Color.White.copy(alpha = 0.45f),
             modifier = Modifier.size(iconSize)
         )
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
         content()
     }
 }

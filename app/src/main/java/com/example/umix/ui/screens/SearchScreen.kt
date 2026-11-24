@@ -42,10 +42,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.umix.data.Album
+import com.example.umix.data.AlbumRepository
 import com.example.umix.ui.components.AlbumArt
 import com.example.umix.ui.components.ChipAccent
 import com.example.umix.ui.components.UmixChip
 import com.example.umix.ui.theme.*
+import kotlinx.coroutines.delay
 
 /** Estado da busca: fica no app (fora da tela) para sobreviver à troca de abas. */
 class SearchUiState {
@@ -53,6 +56,12 @@ class SearchUiState {
     // Seleção inicial = a mostrada no Figma; toque para marcar/desmarcar
     val moods = mutableStateListOf("Alegre", "Relaxar")
     val occasions = mutableStateListOf("Estudo", "Heartbreak")
+
+    // Resultados da busca de álbuns (iTunes)
+    var albums by mutableStateOf<List<Album>>(emptyList())
+    var loading by mutableStateOf(false)
+    var error by mutableStateOf(false)
+    var lastQuery by mutableStateOf("")
 }
 
 private fun SnapshotStateList<String>.toggle(item: String) {
@@ -83,10 +92,37 @@ private val topComments = listOf(
 )
 
 @Composable
-fun SearchScreen(state: SearchUiState) {
+fun SearchScreen(state: SearchUiState, onAlbumClick: (Album) -> Unit = {}) {
     val query = state.query.trim()
     fun matches(vararg fields: String) = query.isEmpty() || fields.any { it.contains(query, ignoreCase = true) }
     val noTop = topComments.none { matches(it.title, it.artist) }
+
+    // Busca no iTunes: espera 400 ms parado de digitar (o LaunchedEffect cancela a busca anterior)
+    val repository = remember { AlbumRepository() }
+    val searching = query.length >= 2
+    LaunchedEffect(query) {
+        if (query.length < 2) {
+            state.albums = emptyList()
+            state.loading = false
+            state.error = false
+            state.lastQuery = ""
+            return@LaunchedEffect
+        }
+        if (query == state.lastQuery) {
+            state.loading = false
+            return@LaunchedEffect
+        }
+        state.loading = true
+        state.error = false
+        delay(400)
+        repository.search(query)
+            .onSuccess {
+                state.albums = it
+                state.lastQuery = query
+            }
+            .onFailure { state.error = true }
+        state.loading = false
+    }
 
     Column(
         modifier = Modifier
@@ -134,24 +170,35 @@ fun SearchScreen(state: SearchUiState) {
         }
 
         Spacer(Modifier.height(22.dp))
-        SearchSectionTitle("Top comentados")
-        Spacer(Modifier.height(8.dp))
-        topComments.forEach { item ->
-            AnimatedVisibility(
-                visible = matches(item.title, item.artist),
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                TopCommentRow(item)
+        if (searching) {
+            SearchSectionTitle("Álbuns")
+            Spacer(Modifier.height(8.dp))
+            state.albums.forEach { album -> AlbumResultRow(album) { onAlbumClick(album) } }
+            when {
+                state.loading -> SearchStatusText("Buscando…")
+                state.error -> SearchStatusText("Não foi possível buscar agora. Verifique sua conexão.")
+                state.albums.isEmpty() -> SearchStatusText("Nenhum álbum para “$query”")
             }
-        }
-        AnimatedVisibility(visible = noTop, enter = fadeIn(), exit = fadeOut()) {
-            Text(
-                text = "Nenhum resultado para “${state.query.trim()}”",
-                style = TextStyle(fontFamily = Montserrat, fontWeight = FontWeight.Normal, fontSize = 12.sp),
-                color = UmixTextSoft,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
+        } else {
+            SearchSectionTitle("Top comentados")
+            Spacer(Modifier.height(8.dp))
+            topComments.forEach { item ->
+                AnimatedVisibility(
+                    visible = matches(item.title, item.artist),
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    TopCommentRow(item)
+                }
+            }
+            AnimatedVisibility(visible = noTop, enter = fadeIn(), exit = fadeOut()) {
+                Text(
+                    text = "Nenhum resultado para “${state.query.trim()}”",
+                    style = TextStyle(fontFamily = Montserrat, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+                    color = UmixTextSoft,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
         }
     }
 }
@@ -314,5 +361,53 @@ private fun TopCommentRow(item: TopComment) {
             )
         }
         Text(text = item.count, style = UmixText.Mono10, color = UmixAccentBlue)
+    }
+}
+
+@Composable
+private fun SearchStatusText(text: String) {
+    Text(
+        text = text,
+        style = TextStyle(fontFamily = Montserrat, fontWeight = FontWeight.Normal, fontSize = 12.sp),
+        color = UmixTextSoft,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+}
+
+/** Mesma linha do "Top comentados", mas com os dados do iTunes (capa real, título, artista e ano). */
+@Composable
+private fun AlbumResultRow(album: Album, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AlbumArt(
+            colors = listOf(UmixCardYellow, UmixYellowBright),
+            modifier = Modifier.size(40.dp),
+            shape = RoundedCornerShape(8.dp),
+            iconSize = 18.dp,
+            imageUrl = album.coverUrl
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = album.title,
+                style = TextStyle(fontFamily = Montserrat, fontWeight = FontWeight.Bold, fontSize = 13.sp),
+                color = UmixTextDark,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = album.artist,
+                style = TextStyle(fontFamily = Montserrat, fontWeight = FontWeight.Normal, fontSize = 10.sp),
+                color = UmixTextSoft,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        album.year?.let { Text(text = it, style = UmixText.Mono10, color = UmixAccentBlue) }
     }
 }

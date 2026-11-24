@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.umix.data.Album
 import com.example.umix.ui.components.NavTab
 import com.example.umix.ui.components.UmixBottomBar
 import com.example.umix.ui.screens.HomeScreen
@@ -70,6 +71,8 @@ fun UMixApp() {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Welcome) }
     var tab by remember { mutableStateOf(NavTab.Home) }
     val searchState = remember { SearchUiState() }
+    var selectedAlbum by remember { mutableStateOf<Album?>(null) }
+    var evalReturnTab by remember { mutableStateOf(NavTab.Profile) }
     val context = LocalContext.current
 
     // Botão voltar do sistema
@@ -78,7 +81,7 @@ fun UMixApp() {
             is Screen.Main -> tab = NavTab.Home
             is Screen.Premium -> currentScreen = Screen.Main
             is Screen.Evaluation -> {
-                tab = NavTab.Profile
+                tab = evalReturnTab
                 currentScreen = Screen.Main
             }
             else -> currentScreen = Screen.Welcome
@@ -112,7 +115,16 @@ fun UMixApp() {
                     onTabChange = { tab = it },
                     searchState = searchState,
                     onPremiumClick = { currentScreen = Screen.Premium },
-                    onNavigateToEvaluation = { currentScreen = Screen.Evaluation },
+                    onAlbumClick = {
+                        selectedAlbum = it
+                        evalReturnTab = NavTab.Search
+                        currentScreen = Screen.Evaluation
+                    },
+                    onNavigateToEvaluation = {
+                        selectedAlbum = null
+                        evalReturnTab = NavTab.Profile
+                        currentScreen = Screen.Evaluation
+                    },
                     onLogout = { currentScreen = Screen.Welcome }
                 )
                 is Screen.Premium -> PremiumScreen(
@@ -126,8 +138,9 @@ fun UMixApp() {
                     }
                 )
                 is Screen.Evaluation -> EvaluationScreen(
+                    album = selectedAlbum,
                     onBack = {
-                        tab = NavTab.Profile
+                        tab = evalReturnTab
                         currentScreen = Screen.Main
                     }
                 )
@@ -145,6 +158,7 @@ fun MainShell(
     tab: NavTab,
     onTabChange: (NavTab) -> Unit,
     searchState: SearchUiState,
+    onAlbumClick: (Album) -> Unit,
     onPremiumClick: () -> Unit,
     onNavigateToEvaluation: () -> Unit,
     onLogout: () -> Unit,
@@ -156,15 +170,15 @@ fun MainShell(
             transitionSpec = {
                 val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
                 (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { (it * 0.18f).toInt() * dir } +
-                    fadeIn(tween(300, delayMillis = 50))) togetherWith
-                    (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -(it * 0.18f).toInt() * dir } +
-                        fadeOut(tween(160)))
+                        fadeIn(tween(300, delayMillis = 50))) togetherWith
+                        (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -(it * 0.18f).toInt() * dir } +
+                                fadeOut(tween(160)))
             },
             label = "tabs"
         ) { current ->
             when (current) {
                 NavTab.Home -> HomeScreen(onPremiumClick = onPremiumClick)
-                NavTab.Search -> SearchScreen(state = searchState)
+                NavTab.Search -> SearchScreen(state = searchState, onAlbumClick = onAlbumClick)
                 NavTab.Profile -> ProfileScreen(
                     onNavigateToEvaluation = onNavigateToEvaluation,
                     onLogout = onLogout
@@ -200,18 +214,18 @@ private fun AnimatedContentTransitionScope<Screen>.screenTransition(): ContentTr
         // Premium sobe de baixo como um "modal"; a tela de trás recua levemente
         to is Screen.Premium ->
             (slideInVertically(tween(420, easing = ease)) { it / 4 } + fadeIn(tween(300))) togetherWith
-                (scaleOut(tween(420, easing = ease), targetScale = 0.94f) + fadeOut(tween(300)))
+                    (scaleOut(tween(420, easing = ease), targetScale = 0.94f) + fadeOut(tween(300)))
 
         // Fechar Premium: ele desce por cima enquanto a tela de trás volta ao tamanho normal
         from is Screen.Premium ->
             ((scaleIn(tween(420, easing = ease), initialScale = 0.94f) + fadeIn(tween(300))) togetherWith
-                (slideOutVertically(tween(380, easing = ease)) { it / 4 } + fadeOut(tween(300))))
+                    (slideOutVertically(tween(380, easing = ease)) { it / 4 } + fadeOut(tween(300))))
                 .apply { targetContentZIndex = -1f }
 
         // Entrar no app depois do login/cadastro: zoom suave
         to is Screen.Main && (from is Screen.SignIn || from is Screen.SignUp) ->
             (fadeIn(tween(380, delayMillis = 60)) + scaleIn(tween(420, easing = ease), initialScale = 0.92f)) togetherWith
-                fadeOut(tween(220))
+                    fadeOut(tween(220))
 
         // Sair (logout): esmaece de volta para a tela inicial
         to is Screen.Welcome && from is Screen.Main ->
@@ -221,9 +235,9 @@ private fun AnimatedContentTransitionScope<Screen>.screenTransition(): ContentTr
         else -> {
             val dir = if (to.level() > from.level()) 1 else -1
             (slideInHorizontally(tween(380, easing = ease)) { (it * 0.25f).toInt() * dir } +
-                fadeIn(tween(300, delayMillis = 60))) togetherWith
-                (slideOutHorizontally(tween(380, easing = ease)) { -(it * 0.25f).toInt() * dir } +
-                    fadeOut(tween(200)))
+                    fadeIn(tween(300, delayMillis = 60))) togetherWith
+                    (slideOutHorizontally(tween(380, easing = ease)) { -(it * 0.25f).toInt() * dir } +
+                            fadeOut(tween(200)))
         }
     }
 }
@@ -299,7 +313,7 @@ data class ReviewItem(val albumTitle: String, val artist: String, val rating: In
 // TELA DE AVALIAÇÃO (PROTÓTIPO)
 // -----------------------------------------------------------------------------
 @Composable
-fun EvaluationScreen(onBack: () -> Unit) {
+fun EvaluationScreen(album: Album?, onBack: () -> Unit) {
     var rating by remember { mutableStateOf(0) }
     var reviewText by remember { mutableStateOf("") }
     val context = LocalContext.current
@@ -322,9 +336,9 @@ fun EvaluationScreen(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(text = "Álbum: Pablo Honey")
-        Text(text = "Artista: Radiohead (1993)")
-        Text(text = "ISRC: GBAYE9200070")
+        Text(text = "Álbum: ${album?.title ?: "Pablo Honey"}")
+        Text(text = "Artista: ${album?.artist ?: "Radiohead"}${album?.year?.let { " ($it)" } ?: " (1993)"}")
+        Text(text = album?.genre?.let { "Gênero: $it" } ?: "ISRC: GBAYE9200070")
 
         Spacer(modifier = Modifier.height(16.dp))
 
